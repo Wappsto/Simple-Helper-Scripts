@@ -24,18 +24,24 @@ try:
             "password": password
         }
     )
-    session = response.json()['meta']['id']
-    headers['x-session'] = session
+    sessionJson = response.json()
+    if sessionJson['meta']['type'] == 'session':
+        session = sessionJson['meta']['id']
+        headers['x-session'] = session
+    else:
+        sys.exit("Failed to login: {0}".format(sessionJson['message']))
 except Exception as e:
-    sys.exit("Failed to login", e)
+    sys.exit("Failed to login: {0}".format(e))
 else:
     print("Logged in to wappsto.com with session", session)
 
 # Get all networks
-response = requests.get(url + '/network', headers=headers)
+response = requests.get(url + '/network?expand=1', headers=headers)
+networks = response.json()
 
-networks = response.json()['id']
-for id in networks:
+for network in networks:
+    id = network['meta']['id']
+    network_name = network['meta']['name_by_user']
     devices = []
     try:
         print("Loading network", id)
@@ -73,6 +79,8 @@ for id in networks:
                     data.extend(logs['data'])
                     if logs['more'] == False:
                         break
+
+                data = list(map(lambda elm: elm | {'name': network_name} , data))
 
                 with open(logID+".json", 'w') as file:
                     file.write(json.dumps(data))
